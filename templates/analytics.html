@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Government Analytics Panel</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card p-3">
+      <h5>Top 3 High-Loss Zones</h5>
+      <ol>
+      {% for item in top3 %}
+        <li><strong>{{ item.zone.name }}</strong> - Estimated Loss: {{ '%.2f'|format(item.estimated_loss) }} L</li>
+      {% else %}
+        <li>No data available.</li>
+      {% endfor %}
+      </ol>
+      <p class="mb-0"><strong>Estimated Financial Loss:</strong> ₹{{ '%.2f'|format(financial_loss) }}</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6>Reports</h6>
+      <a class="btn btn-outline-primary" href="{{ url_for('dashboard.export_analytics') }}">Export Monthly CSV</a>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3">
+  <h5>Monthly Summary</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Month</th><th>Zone</th><th>Consumption (L)</th><th>Estimated Loss (L)</th></tr></thead>
+    <tbody>
+      {% for row in monthly_rows %}
+      <tr>
+        <td>{{ row.month }}</td>
+        <td>{{ row.zone.name if row.zone else row.zone_id }}</td>
+        <td>{{ '%.2f'|format(row.consumption_liters) }}</td>
+        <td>{{ '%.2f'|format(row.estimated_loss_liters) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No summary data.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
