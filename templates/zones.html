@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">Zone Management</h2>
+<div class="card p-3 mb-4">
+  <h5>Add Zone</h5>
+  <form method="post" action="{{ url_for('zone.add_zone') }}" class="row g-2">
+    <div class="col-md-4"><input name="name" class="form-control" placeholder="Zone name" required></div>
+    <div class="col-md-3"><input type="number" step="0.01" name="expected_daily_usage" class="form-control" placeholder="Expected daily usage (L)" required></div>
+    <div class="col-md-3"><input type="number" step="0.01" name="baseline_flow_rate" class="form-control" placeholder="Baseline flow (L/min)" required></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Add</button></div>
+  </form>
+</div>
+
+<table class="table table-striped align-middle">
+  <thead><tr><th>Name</th><th>Expected Daily Usage</th><th>Baseline Flow</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for zone in zones %}
+    <tr>
+      <form method="post" action="{{ url_for('zone.edit_zone', zone_id=zone.id) }}">
+      <td><input name="name" value="{{ zone.name }}" class="form-control"></td>
+      <td><input name="expected_daily_usage" type="number" step="0.01" value="{{ zone.expected_daily_usage }}" class="form-control"></td>
+      <td><input name="baseline_flow_rate" type="number" step="0.01" value="{{ zone.baseline_flow_rate }}" class="form-control"></td>
+      <td class="d-flex gap-2">
+        <button class="btn btn-success btn-sm">Save</button>
+      </form>
+        <form method="post" action="{{ url_for('zone.delete_zone', zone_id=zone.id) }}"><button class="btn btn-danger btn-sm" onclick="return confirm('Delete zone?');">Delete</button></form>
+        <form method="post" action="{{ url_for('dashboard.simulate_leak', zone_id=zone.id) }}"><button class="btn btn-warning btn-sm">Simulate Leak</button></form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

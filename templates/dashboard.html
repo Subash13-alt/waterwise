@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Smart Monitoring Dashboard</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card p-3"><h6>Total Zones</h6><h3>{{ total_zones }}</h3></div></div>
+  <div class="col-md-4"><div class="card p-3"><h6>Active Alerts</h6><h3 class="text-danger">{{ active_alerts }}</h3></div></div>
+  <div class="col-md-4"><div class="card p-3"><h6>Daily Consumption</h6><h3>{{ '%.2f'|format(daily_consumption) }} L</h3></div></div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6 mb-4"><div class="card p-3"><h5>Zone Consumption</h5><canvas id="barChart"></canvas></div></div>
+  <div class="col-lg-6 mb-4"><div class="card p-3"><h5>Flow Trend</h5><canvas id="lineChart"></canvas></div></div>
+</div>
+
+<div class="card p-3 mb-4">
+  <h5>Risk Highlight</h5>
+  <div class="d-flex flex-wrap gap-2">
+    {% for zone_name, _ in consumption_by_zone %}
+      <span class="badge {% if zone_name in alert_zone_names %}bg-danger{% else %}bg-success{% endif %}">{{ zone_name }}</span>
+    {% endfor %}
+  </div>
+  <small class="text-muted">Red zones have active warning/critical alerts.</small>
+</div>
+
+<div class="card p-3">
+  <h5>Recent Alerts</h5>
+  <ul class="list-group">
+    {% for alert in recent_alerts %}
+      <li class="list-group-item {% if alert.severity == 'critical' %}list-group-item-danger{% endif %}">
+        <strong>{{ alert.alert_type }}</strong> - {{ alert.zone.name if alert.zone else 'Unknown' }} - {{ alert.message }}
+        <span class="text-muted float-end">{{ alert.timestamp.strftime('%H:%M:%S') }}</span>
+      </li>
+    {% else %}
+      <li class="list-group-item">No alerts yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const zoneLabels = {{ consumption_by_zone|map(attribute=0)|list|tojson }};
+const zoneUsage = {{ consumption_by_zone|map(attribute=1)|list|tojson }};
+const alertZones = {{ alert_zone_names|list|tojson }};
+
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: zoneLabels,
+    datasets: [{
+      label: 'Consumption (L)',
+      data: zoneUsage,
+      backgroundColor: zoneLabels.map((name) => alertZones.includes(name) ? '#dc3545' : '#0d6efd')
+    }]
+  }
+});
+
+fetch('/api/flow-trends').then(r => r.json()).then(rows => {
+  const labels = rows.map(r => new Date(r.timestamp).toLocaleTimeString());
+  const data = rows.map(r => r.flow_rate);
+  new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Flow Rate (L/min)', data, borderColor: '#198754' }] },
+    options: { elements: { point: { radius: 1 } } }
+  });
+});
+</script>
+{% endblock %}
