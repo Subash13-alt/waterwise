@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Alert History – WaterWise ML v2{% endblock %}
+{% block page_title %}<i class="bi bi-journal-text me-2"></i>Alert History{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="glass-card mb-4">
+  <div class="card-hdr"><span><i class="bi bi-funnel me-2"></i>Filters</span></div>
+  <div class="p-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small">Zone</label>
+        <select class="form-control custom-input" id="f-zone">
+          <option value="">All Zones</option>
+          {% for z in zones %}<option value="{{z.id}}">{{z.name}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Severity</label>
+        <select class="form-control custom-input" id="f-severity">
+          <option value="">All</option>
+          <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small">Type</label>
+        <select class="form-control custom-input" id="f-type">
+          <option value="">All Types</option>
+          <option>High Flow</option><option>ML Anomaly</option>
+          <option>Leak Detected</option><option>Night Usage</option>
+          <option>High Risk</option><option>Budget Alert</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" onclick="loadHistory(1)">
+          <i class="bi bi-search me-1"></i>Filter
+        </button>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+          <i class="bi bi-x-circle me-1"></i>Clear
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row g-3 mb-4" id="history-stats">
+  <div class="col-md-3"><div class="stat-mini"><div class="sm-val" id="sh-total">—</div><div class="sm-label">Total Alerts</div></div></div>
+  <div class="col-md-3"><div class="stat-mini stat-red"><div class="sm-val" id="sh-crit">—</div><div class="sm-label">Critical</div></div></div>
+  <div class="col-md-3"><div class="stat-mini stat-orange"><div class="sm-val" id="sh-high">—</div><div class="sm-label">High</div></div></div>
+  <div class="col-md-3"><div class="stat-mini stat-teal"><div class="sm-val" id="sh-med">—</div><div class="sm-label">Medium / Low</div></div></div>
+</div>
+
+<!-- Table -->
+<div class="glass-card">
+  <div class="card-hdr">
+    <span><i class="bi bi-table me-2"></i>All Alerts</span>
+    <span class="text-muted small" id="result-count"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table" id="hist-table">
+      <thead><tr><th>Time</th><th>Zone</th><th>Type</th><th>Severity</th><th>Status</th><th>Message</th></tr></thead>
+      <tbody id="hist-tbody"><tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="p-3 d-flex justify-content-between align-items-center" id="pagination"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let totalAlerts = { total:0, critical:0, high:0, medlow:0 };
+
+async function loadHistory(page=1){
+  currentPage = page;
+  const zone = document.getElementById("f-zone").value;
+  const sev  = document.getElementById("f-severity").value;
+  const type = document.getElementById("f-type").value;
+  let url    = `/api/alerts/history?page=${page}&per_page=20&unresolved=false`;
+  if(zone) url+=`&zone_id=${zone}`;
+  if(sev)  url+=`&severity=${encodeURIComponent(sev)}`;
+  if(type) url+=`&type=${encodeURIComponent(type)}`;
+
+  const res  = await fetch(url);
+  const data = await res.json();
+
+  document.getElementById("result-count").textContent = `${data.total} results`;
+  document.getElementById("sh-total").textContent = data.total;
+
+  const tbody = document.getElementById("hist-tbody");
+  if(!data.alerts.length){
+    tbody.innerHTML='<tr><td colspan="6" class="text-center text-muted py-3">No alerts found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.alerts.map(a=>`
+    <tr class="${a.severity==='Critical'?'row-crit':a.severity==='High'?'row-high':''}">
+      <td class="mono">${a.timestamp}</td>
+      <td>${a.zone_name}</td>
+      <td><span class="atype at-${a.alert_type.toLowerCase().replace(/ /g,'-')}">${a.alert_type}</span></td>
+      <td><span class="sev sev-${a.severity.toLowerCase()}">${a.severity}</span></td>
+      <td><span class="sev ${a.is_resolved?'sev-low':'sev-medium'}">${a.is_resolved?'Resolved':'Open'}</span></td>
+      <td class="msg-cell" title="${esc(a.message)}">${esc(a.message)}</td>
+    </tr>`).join("");
+
+  // Pagination
+  const pages = Math.ceil(data.total/20);
+  document.getElementById("pagination").innerHTML = `
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${page-1})" ${page<=1?'disabled':''}>
+      <i class="bi bi-chevron-left"></i> Prev
+    </button>
+    <span class="text-muted small">Page ${page} of ${pages}</span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${page+1})" ${page>=pages?'disabled':''}>
+      Next <i class="bi bi-chevron-right"></i>
+    </button>`;
+}
+
+async function loadSummary(){
+  const [crit,high,med,total] = await Promise.all([
+    fetch("/api/alerts/history?severity=Critical&per_page=1&unresolved=false").then(r=>r.json()),
+    fetch("/api/alerts/history?severity=High&per_page=1&unresolved=false").then(r=>r.json()),
+    fetch("/api/alerts/history?severity=Medium&per_page=1&unresolved=false").then(r=>r.json()),
+    fetch("/api/alerts/history?per_page=1&unresolved=false").then(r=>r.json()),
+  ]);
+  document.getElementById("sh-total").textContent = total.total;
+  document.getElementById("sh-crit").textContent  = crit.total;
+  document.getElementById("sh-high").textContent  = high.total;
+  document.getElementById("sh-med").textContent   = med.total;
+}
+
+function clearFilters(){
+  document.getElementById("f-zone").value="";
+  document.getElementById("f-severity").value="";
+  document.getElementById("f-type").value="";
+  loadHistory(1);
+}
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+document.addEventListener("DOMContentLoaded",()=>{ loadHistory(1); loadSummary(); });
+</script>
+{% endblock %}

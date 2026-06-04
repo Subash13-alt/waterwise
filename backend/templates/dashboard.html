@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – WaterWise ML v2{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 me-2"></i>Live Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  {% set kpis = [
+    ('kpi-zones',       total_zones,       'Active Zones',      'geo-alt-fill',    'blue',   'Monitoring live'),
+    ('kpi-alerts',      active_alerts,     'Active Alerts',     'bell-fill',       'red',    'Unresolved'),
+    ('kpi-consumption', total_consumption~' kL', 'Consumption 24h','droplet-fill','teal','Total flow'),
+    ('kpi-anomaly',     anomaly_pct~'%',   'Anomaly Rate',      'cpu-fill',        'orange', 'ML detected'),
+  ] %}
+  {% for id,val,label,icon,color,sub in kpis %}
+  <div class="col-xl-3 col-md-6">
+    <div class="kpi kpi-{{color}}">
+      <div class="kpi-icon"><i class="bi bi-{{icon}}"></i></div>
+      <div>
+        <div class="kpi-val" id="{{id}}">{{val}}</div>
+        <div class="kpi-label">{{label}}</div>
+        <div class="kpi-sub">{{sub}}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Zone Health Grid -->
+<div class="glass-card mb-4">
+  <div class="card-hdr">
+    <span><i class="bi bi-grid me-2"></i>Zone Health Monitor</span>
+    <span class="live-badge"><span class="pulse"></span>Live</span>
+  </div>
+  <div class="zone-grid" id="zone-grid">
+    {% for zone in zones %}
+    <div class="zone-tile zt-{{zone_status[zone.id]}}" id="zt-{{zone.id}}">
+      <div class="zt-top">
+        <span class="zt-name">{{zone.name}}</span>
+        <span class="zt-status st-{{zone_status[zone.id]}}">
+          {{'DANGER' if zone_status[zone.id]=='danger' else ('WARN' if zone_status[zone.id]=='warning' else 'OK')}}
+        </span>
+      </div>
+      <div class="zt-flow" id="ztf-{{zone.id}}">—</div>
+      <div class="zt-meta">Base: {{zone.baseline_flow_rate}} L/s · <span id="ztl-{{zone.id}}">{{zone.location_tag}}</span></div>
+      <div class="zt-grade" id="ztg-{{zone.id}}">Grade: —</div>
+      <button class="leak-btn" onclick="injectLeak({{zone.id}},'{{zone.name}}')">
+        <i class="bi bi-lightning-charge-fill"></i> Inject Leak
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-8">
+    <div class="glass-card h-100">
+      <div class="card-hdr">
+        <span><i class="bi bi-activity me-2"></i>Real-Time Flow</span>
+        <select class="mini-select" id="flow-zone-sel" onchange="changeFlowZone()">
+          {% for z in zones %}<option value="{{z.id}}">{{z.name}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="chart-box"><canvas id="flowChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="glass-card h-100">
+      <div class="card-hdr"><span><i class="bi bi-pie-chart me-2"></i>Status Split</span></div>
+      <div class="chart-box" style="height:260px"><canvas id="pieChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-6">
+    <div class="glass-card">
+      <div class="card-hdr"><span><i class="bi bi-bar-chart me-2"></i>Zone Consumption (24h)</span></div>
+      <div class="chart-box"><canvas id="barChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="glass-card">
+      <div class="card-hdr">
+        <span><i class="bi bi-graph-up-arrow me-2"></i>ML Usage Prediction</span>
+        <span class="ml-tag"><i class="bi bi-robot me-1"></i>ML</span>
+      </div>
+      <div class="chart-box"><canvas id="predChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Budget Progress -->
+<div class="glass-card mb-4">
+  <div class="card-hdr">
+    <span><i class="bi bi-piggy-bank me-2"></i>Monthly Budget Status</span>
+    <a href="/budget" class="view-all">View all →</a>
+  </div>
+  <div class="budget-row" id="budget-bars">
+    <div class="text-muted p-3 small">Loading…</div>
+  </div>
+</div>
+
+<!-- Alerts -->
+<div class="glass-card">
+  <div class="card-hdr">
+    <span><i class="bi bi-bell me-2"></i>Active Alerts</span>
+    <span class="badge bg-danger rounded-pill" id="alert-badge">{{active_alerts}}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table" id="alerts-table">
+      <thead><tr><th>Time</th><th>Zone</th><th>Type</th><th>Severity</th><th>Message</th><th>Action</th></tr></thead>
+      <tbody id="alerts-tbody">
+        {% for a in recent_alerts %}
+        <tr>
+          <td class="mono">{{a.timestamp.strftime('%H:%M:%S')}}</td>
+          <td>{{a.zone.name if a.zone else '—'}}</td>
+          <td><span class="atype at-{{a.alert_type|lower|replace(' ','-')}}">{{a.alert_type}}</span></td>
+          <td><span class="sev sev-{{a.severity|lower}}">{{a.severity}}</span></td>
+          <td class="msg-cell" title="{{a.message}}">{{a.message}}</td>
+          <td><button class="resolve-btn" onclick="resolveAlert({{a.id}},this)"><i class="bi bi-check2"></i></button></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-3">No active alerts 🎉</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  initDashboard();
+  setInterval(refreshDashboard, 5000);
+});
+function resolveAlert(id,btn){ fetch(`/api/alerts/${id}/resolve`,{method:"POST"}).then(r=>r.json()).then(d=>{if(d.success){btn.closest("tr").remove();showToast("Alert resolved","success")}}); }
+function injectLeak(id,name){ fetch(`/api/demo/inject_leak/${id}`,{method:"POST"}).then(()=>showToast(`🚨 Leak injected → "${name}" (30s)`,"danger")); }
+function changeFlowZone(){ refreshFlowChart(document.getElementById("flow-zone-sel").value); }
+</script>
+{% endblock %}

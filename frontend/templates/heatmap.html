@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Anomaly Heatmap – WaterWise ML v2{% endblock %}
+{% block page_title %}<i class="bi bi-grid-3x3 me-2"></i>Anomaly Heatmap{% endblock %}
+
+{% block content %}
+<div class="glass-card mb-4">
+  <div class="card-hdr">
+    <span><i class="bi bi-grid me-2"></i>Anomaly Density by Day × Hour (Last 30 Days)</span>
+    <select class="mini-select" id="hm-zone" onchange="loadHeatmap()">
+      <option value="">All Zones</option>
+      {% for z in zones %}<option value="{{z.id}}">{{z.name}}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="p-4">
+    <div class="heatmap-wrap">
+      <div class="hm-labels-y" id="hm-y-labels"></div>
+      <div class="heatmap-grid" id="heatmap-grid"></div>
+    </div>
+    <div class="hm-legend">
+      <span class="hm-legend-label">0 anomalies</span>
+      <div class="hm-scale"></div>
+      <span class="hm-legend-label">High density</span>
+    </div>
+    <div class="hm-x-labels" id="hm-x-labels"></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="glass-card">
+      <div class="card-hdr"><span><i class="bi bi-clock-history me-2"></i>Peak Anomaly Hours</span></div>
+      <div class="p-3" id="peak-hours">Loading…</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="glass-card">
+      <div class="card-hdr"><span><i class="bi bi-calendar-week me-2"></i>Peak Anomaly Days</span></div>
+      <div class="p-3" id="peak-days">Loading…</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DAYS  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const HOURS = Array.from({length:24},(_,i)=>i);
+
+async function loadHeatmap(){
+  const zid = document.getElementById("hm-zone").value;
+  const url  = zid ? `/api/heatmap?zone_id=${zid}` : "/api/heatmap";
+  const res  = await fetch(url);
+  const data = await res.json();
+  const matrix = data.matrix;          // 7×24
+
+  // Find max for colour scaling
+  const flat = matrix.flat();
+  const maxV = Math.max(1, ...flat);
+
+  // Y labels (days)
+  const yEl = document.getElementById("hm-y-labels");
+  yEl.innerHTML = DAYS.map(d=>`<div class="hm-label">${d}</div>`).join("");
+
+  // X labels (hours)
+  const xEl = document.getElementById("hm-x-labels");
+  xEl.innerHTML = HOURS.map(h=>`<div class="hm-h-label">${h.toString().padStart(2,"0")}</div>`).join("");
+
+  // Grid cells
+  const grid = document.getElementById("heatmap-grid");
+  grid.style.gridTemplateColumns = `repeat(24,1fr)`;
+  grid.innerHTML = "";
+  matrix.forEach((row,di)=>{
+    row.forEach((val,hi)=>{
+      const pct  = val/maxV;
+      const cell = document.createElement("div");
+      cell.className   = "hm-cell";
+      cell.title       = `${DAYS[di]} ${hi}:00 → ${val} anomalies`;
+      cell.style.background = pct===0 ? "var(--bg-panel2)" :
+        `rgba(255,77,109,${0.12 + pct*0.88})`;
+      if(pct>0.6) cell.style.boxShadow=`0 0 8px rgba(255,77,109,${pct*0.5})`;
+      grid.appendChild(cell);
+    });
+  });
+
+  // Peak hours
+  const hourTotals = HOURS.map(h=>({hour:h,count:matrix.reduce((s,r)=>s+r[h],0)}));
+  hourTotals.sort((a,b)=>b.count-a.count);
+  document.getElementById("peak-hours").innerHTML = hourTotals.slice(0,5).map((h,i)=>`
+    <div class="peak-row">
+      <span class="peak-rank">#${i+1}</span>
+      <span class="peak-label">${h.hour.toString().padStart(2,"0")}:00 – ${(h.hour+1).toString().padStart(2,"0")}:00</span>
+      <div class="peak-bar-wrap"><div class="peak-bar" style="width:${h.count/hourTotals[0].count*100}%"></div></div>
+      <span class="peak-count">${h.count}</span>
+    </div>`).join("");
+
+  // Peak days
+  const dayTotals = DAYS.map((d,i)=>({day:d,count:matrix[i].reduce((s,v)=>s+v,0)}));
+  dayTotals.sort((a,b)=>b.count-a.count);
+  document.getElementById("peak-days").innerHTML = dayTotals.map((d,i)=>`
+    <div class="peak-row">
+      <span class="peak-rank">#${i+1}</span>
+      <span class="peak-label">${d.day}</span>
+      <div class="peak-bar-wrap"><div class="peak-bar" style="width:${d.count/Math.max(1,dayTotals[0].count)*100}%"></div></div>
+      <span class="peak-count">${d.count}</span>
+    </div>`).join("");
+}
+
+document.addEventListener("DOMContentLoaded", loadHeatmap);
+</script>
+{% endblock %}

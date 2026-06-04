@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Zone – WaterWise ML v2{% endblock %}
+{% block page_title %}
+  <i class="bi bi-{{ 'plus-circle' if action=='Add' else 'pencil' }} me-2"></i>{{ action }} Zone
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="glass-card">
+      <div class="card-hdr"><span>Zone Details</span></div>
+      <div class="p-4">
+        <form method="POST">
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Zone Name</label>
+            <input type="text" class="form-control custom-input" name="name"
+                   value="{{ zone.name if zone else '' }}"
+                   placeholder="e.g. Residential North" required/>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Location Tag <span class="text-muted">(optional)</span></label>
+            <input type="text" class="form-control custom-input" name="location_tag"
+                   value="{{ zone.location_tag if zone else '' }}"
+                   placeholder="e.g. North Block, Sector 4"/>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Baseline Flow <span class="text-muted">(L/s)</span></label>
+              <input type="number" class="form-control custom-input" name="baseline_flow_rate"
+                     value="{{ zone.baseline_flow_rate if zone else '' }}"
+                     step="0.01" min="0.01" placeholder="1.5" required/>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Daily Target <span class="text-muted">(L)</span></label>
+              <input type="number" class="form-control custom-input" name="expected_daily_usage"
+                     value="{{ zone.expected_daily_usage if zone else '' }}"
+                     step="1" min="1" placeholder="5000" required/>
+            </div>
+          </div>
+          {% if action == 'Add' %}
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Monthly Budget <span class="text-muted">(L, optional)</span></label>
+            <input type="number" class="form-control custom-input" name="monthly_budget"
+                   step="1" min="0" placeholder="e.g. 150000"/>
+            <div class="form-text">Set a water budget for this zone. Alerts fire at 85% usage.</div>
+          </div>
+          {% endif %}
+          <div class="d-flex gap-2 mt-2">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check2 me-1"></i>{{ action }} Zone
+            </button>
+            <a href="{{ url_for('zones.list_zones') }}" class="btn btn-outline-secondary px-4">
+              <i class="bi bi-x me-1"></i>Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}WaterWise ML v2{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- ── Animated BG Orbs ──────────────────────────────────────────────────── -->
+<div class="bg-orbs" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- ── Sidebar ────────────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo"><i class="bi bi-droplet-fill"></i></div>
+    <div class="sb-text">
+      <span class="sb-title">WaterWise</span>
+      <span class="sb-ver">ML v2.0</span>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-section-label">Monitor</div>
+    <a href="/" class="sb-link {% if request.endpoint=='dashboard.index' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    </a>
+    <a href="/heatmap" class="sb-link {% if request.endpoint=='heatmap_page' %}active{% endif %}">
+      <i class="bi bi-grid-3x3"></i><span>Anomaly Heatmap</span>
+      <span class="sb-badge new">NEW</span>
+    </a>
+
+    <div class="sb-section-label">Manage</div>
+    <a href="/zones/" class="sb-link {% if 'zones' in (request.endpoint or '') %}active{% endif %}">
+      <i class="bi bi-geo-alt"></i><span>Zones</span>
+    </a>
+    <a href="/budget" class="sb-link {% if request.endpoint=='budget_page' %}active{% endif %}">
+      <i class="bi bi-piggy-bank"></i><span>Budget Planner</span>
+      <span class="sb-badge new">NEW</span>
+    </a>
+
+    <div class="sb-section-label">Reports</div>
+    <a href="/analytics" class="sb-link {% if request.endpoint=='analytics' %}active{% endif %}">
+      <i class="bi bi-graph-up-arrow"></i><span>Analytics</span>
+    </a>
+    <a href="/alerts" class="sb-link {% if request.endpoint=='alert_history_page' %}active{% endif %}">
+      <i class="bi bi-journal-text"></i><span>Alert History</span>
+      <span class="sb-badge new">NEW</span>
+    </a>
+  </nav>
+
+  <div class="sb-footer">
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+      <i class="bi bi-moon-stars" id="theme-icon"></i>
+      <span id="theme-label">Light Mode</span>
+    </button>
+    <div class="sim-pill">
+      <span class="pulse"></span>
+      <span>Live · 5s refresh</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<div class="main-wrap" id="main-wrap">
+  <header class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+    <h1 class="topbar-title">{% block page_title %}WaterWise ML{% endblock %}</h1>
+    <div class="topbar-actions">
+      <div class="clock-pill" id="clock">--:--:--</div>
+      <a href="/api/export/csv" class="action-btn" title="Export CSV">
+        <i class="bi bi-download"></i>
+      </a>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="padding:0 24px">
+        {% for cat,msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show mt-3" role="alert">
+            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="page-body">{% block content %}{% endblock %}</main>
+</div>
+
+<!-- Toast container -->
+<div id="toasts" class="toast-wrap"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

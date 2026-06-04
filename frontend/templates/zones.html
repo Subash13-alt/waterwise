@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Zones – WaterWise ML v2{% endblock %}
+{% block page_title %}<i class="bi bi-geo-alt me-2"></i>Zone Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <span class="text-muted small">{{ zones|length }} zones configured</span>
+  <a href="{{ url_for('zones.add_zone') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Add Zone
+  </a>
+</div>
+
+<div class="glass-card">
+  <div class="card-hdr">
+    <span><i class="bi bi-list-ul me-2"></i>All Zones</span>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Location</th>
+          <th>Baseline (L/s)</th><th>Daily Target (L)</th>
+          <th>Status</th><th>Created</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zone in zones %}
+        <tr>
+          <td class="mono">{{ zone.id }}</td>
+          <td><strong>{{ zone.name }}</strong></td>
+          <td class="text-muted small">{{ zone.location_tag or '—' }}</td>
+          <td class="mono">{{ zone.baseline_flow_rate }}</td>
+          <td class="mono">{{ "{:,}".format(zone.expected_daily_usage|int) }}</td>
+          <td>
+            {% if zone.is_active %}
+              <span class="sev sev-low"><i class="bi bi-circle-fill me-1" style="font-size:.45rem"></i>Active</span>
+            {% else %}
+              <span class="sev" style="background:rgba(100,120,140,.15);color:#7d94b5">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="mono text-muted">{{ zone.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('zones.edit_zone', zone_id=zone.id) }}" class="icon-btn" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('zones.toggle_zone', zone_id=zone.id) }}" class="d-inline">
+                <button type="submit" class="icon-btn" title="{{ 'Deactivate' if zone.is_active else 'Activate' }}">
+                  <i class="bi bi-{{ 'pause-circle' if zone.is_active else 'play-circle' }}"></i>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('zones.delete_zone', zone_id=zone.id) }}" class="d-inline"
+                    onsubmit="return confirm('Delete zone {{ zone.name }}? All readings and alerts will be removed.')">
+                <button type="submit" class="icon-btn icon-btn-danger" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            No zones yet. <a href="{{ url_for('zones.add_zone') }}" class="text-primary">Add your first zone →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Notes Panel -->
+{% if zones %}
+<div class="glass-card mt-4">
+  <div class="card-hdr">
+    <span><i class="bi bi-sticky me-2"></i>Operator Notes</span>
+    <select class="mini-select" id="notes-zone-sel" onchange="loadNotes()">
+      {% for z in zones %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="p-3" id="notes-list">Loading…</div>
+  <div class="p-3 border-top" style="border-color:var(--border)!important">
+    <div class="row g-2">
+      <div class="col-md-7">
+        <input type="text" class="form-control custom-input" id="note-content" placeholder="Add a note…" />
+      </div>
+      <div class="col-md-3">
+        <input type="text" class="form-control custom-input" id="note-author" placeholder="Author (optional)" />
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" onclick="addNote()"><i class="bi bi-plus me-1"></i>Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadNotes(){
+  const zid = document.getElementById("notes-zone-sel")?.value;
+  if(!zid) return;
+  const notes = await fetch(`/api/notes/${zid}`).then(r=>r.json());
+  const el    = document.getElementById("notes-list");
+  if(!notes.length){ el.innerHTML='<div class="text-muted small p-1">No notes for this zone.</div>'; return; }
+  el.innerHTML = notes.map(n=>`
+    <div class="note-row ${n.pinned?'note-pinned':''}">
+      <div class="note-body">
+        ${n.pinned?'<i class="bi bi-pin-fill text-warning me-1"></i>':''}
+        <span class="note-text">${n.content}</span>
+      </div>
+      <div class="note-meta">${n.author} · ${n.created_at}</div>
+      <button class="icon-btn icon-btn-danger ms-2" onclick="deleteNote(${n.id})" title="Delete">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>`).join("");
+}
+
+async function addNote(){
+  const zid     = document.getElementById("notes-zone-sel").value;
+  const content = document.getElementById("note-content").value.trim();
+  const author  = document.getElementById("note-author").value.trim() || "Operator";
+  if(!content){ showToast("Enter a note","warning"); return; }
+  await fetch("/api/notes",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({zone_id:parseInt(zid),content,author})});
+  document.getElementById("note-content").value="";
+  loadNotes();
+  showToast("Note added","success");
+}
+
+async function deleteNote(id){
+  await fetch(`/api/notes/${id}`,{method:"DELETE"});
+  loadNotes();
+}
+
+document.addEventListener("DOMContentLoaded", loadNotes);
+</script>
+{% endblock %}

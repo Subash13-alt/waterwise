@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Budget Planner – WaterWise ML v2{% endblock %}
+{% block page_title %}<i class="bi bi-piggy-bank me-2"></i>Water Budget Planner{% endblock %}
+
+{% block content %}
+<!-- Set Budget -->
+<div class="glass-card mb-4">
+  <div class="card-hdr"><span><i class="bi bi-pencil-square me-2"></i>Set Monthly Budget</span></div>
+  <div class="p-4">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Zone</label>
+        <select class="form-control custom-input" id="b-zone">
+          {% for z in zones %}<option value="{{z.id}}">{{z.name}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Monthly Budget (Litres)</label>
+        <input type="number" class="form-control custom-input" id="b-litres" placeholder="e.g. 135000" min="1"/>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Alert Threshold</label>
+        <select class="form-control custom-input" id="b-thresh">
+          <option value="0.75">75%</option>
+          <option value="0.85" selected>85%</option>
+          <option value="0.90">90%</option>
+          <option value="0.95">95%</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" onclick="saveBudget()">
+          <i class="bi bi-save me-1"></i>Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Budget Progress Cards -->
+<div class="row g-3" id="budget-cards">
+  <div class="col-12 text-center text-muted py-4">Loading budgets…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadBudgets(){
+  const res  = await fetch("/api/budget");
+  const data = await res.json();
+  const cont = document.getElementById("budget-cards");
+  if(!data.length){ cont.innerHTML='<div class="col-12 text-center text-muted py-4">No budgets set yet.</div>'; return; }
+
+  cont.innerHTML = data.map(b=>{
+    const barColor = b.pct>=100?"var(--red)":b.pct>=85?"var(--orange)":"var(--teal)";
+    const remaining = Math.max(0,b.budget_l - b.used_l);
+    return `
+    <div class="col-xl-4 col-md-6">
+      <div class="glass-card budget-card">
+        <div class="bc-header">
+          <span class="bc-zone">${b.zone_name}</span>
+          <span class="bc-month">${b.month}</span>
+        </div>
+        <div class="bc-pct" style="color:${barColor}">${b.pct}%</div>
+        <div class="bc-bar-wrap">
+          <div class="bc-bar" style="width:${b.pct}%;background:${barColor}"></div>
+        </div>
+        <div class="bc-stats">
+          <div><span class="bc-stat-label">Used</span><span class="bc-stat-val">${b.used_l.toLocaleString()} L</span></div>
+          <div><span class="bc-stat-label">Budget</span><span class="bc-stat-val">${b.budget_l.toLocaleString()} L</span></div>
+          <div><span class="bc-stat-label">Remaining</span><span class="bc-stat-val" style="color:${barColor}">${remaining.toLocaleString()} L</span></div>
+          <div><span class="bc-stat-label">Est. Cost</span><span class="bc-stat-val">₹${(b.used_l/1000*20).toFixed(2)}</span></div>
+        </div>
+        <div class="bc-status st-${b.status}">
+          ${b.status==='danger'?'⚠ Over budget!':b.status==='warning'?'⚡ Approaching limit':'✓ On track'}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function saveBudget(){
+  const payload = {
+    zone_id: parseInt(document.getElementById("b-zone").value),
+    budget_litres: parseFloat(document.getElementById("b-litres").value),
+    alert_threshold: parseFloat(document.getElementById("b-thresh").value),
+  };
+  if(!payload.budget_litres){ showToast("Enter a budget amount","warning"); return; }
+  const res = await fetch("/api/budget/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const d   = await res.json();
+  if(d.success){ showToast("Budget saved!","success"); loadBudgets(); }
+  else showToast("Error: "+d.error,"danger");
+}
+
+document.addEventListener("DOMContentLoaded", loadBudgets);
+</script>
+{% endblock %}
