@@ -1,0 +1,162 @@
+# ============================================
+# SHADOW MONARCH - Urban Heat Intelligence
+# Git Ignore File
+# ============================================
+
+# ------------------- Python -------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+virtualenv/
+
+# ------------------- Model Files (Large) -------------------
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.onnx
+*.bin
+*.model
+*.weights
+
+# ------------------- Data Files -------------------
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.db
+*.sqlite
+*.sqlite3
+data/raw/
+data/processed/
+data/interim/
+*.nc
+*.hdf
+
+# ------------------- Outputs -------------------
+outputs/
+logs/
+*.log
+*.tmp
+temp/
+tmp/
+*.out
+*.err
+
+# ------------------- Trained Models -------------------
+trained_models/
+models_cache/
+checkpoints/
+*.ckpt
+
+# ------------------- Hugging Face Cache -------------------
+huggingface/cache/
+.huggingface/
+cache/
+
+# ------------------- IDE Files -------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+*.sublime-*
+.project
+.classpath
+.settings/
+
+# ------------------- Jupyter Notebook -------------------
+.ipynb_checkpoints/
+*.ipynb
+*.ipynb_checkpoints
+
+# ------------------- Environment Variables -------------------
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+*.p12
+
+# ------------------- Frontend / UI Assets -------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.next/
+out/
+*.min.js
+*.min.css
+
+# ------------------- Testing -------------------
+.coverage
+.coverage.*
+.nyc_output/
+.pytest_cache/
+.tox/
+htmlcov/
+*.cover
+
+# ------------------- Documentation -------------------
+docs/_build/
+site/
+
+# ------------------- OS Generated -------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.dll
+*.exe
+
+# ------------------- Backup Files -------------------
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+
+# ------------------- Secrets & Keys -------------------
+*.secret
+*.token
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+keys/
+
+# ------------------- Docker -------------------
+*.pid
+docker-compose.override.yml
+.dockerignore
+
+# ------------------- Flask -------------------
+instance/
+.webassets-cache
+*.db
+
+# ------------------- Miscellaneous -------------------
+*.swp
+*.swo
+*~
+*.lock
+requirements.txt.lock
